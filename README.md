@@ -6,7 +6,7 @@ Own your request inventory, weekly service checks and integration handovers in o
 |---|---|---|
 | Free under MIT. Install the demo below. | Your exports, review rules, approved authentication design and reporting. | Installed and operated through Omni by Enterprise DNA. One setup fee, then a retainer. |
 
-[Get your version built](https://enterprisedna.co/omni/book/?offer=replace-software&utm_source=github&utm_medium=readme&utm_campaign=postman) · [Instead of Postman](https://enterprisedna.co/omni/instead-of/postman)
+[Get your version built](https://enterprisedna.co/omni/book/?offer=replace-software&utm_source=github&utm_medium=readme&utm_campaign=postman) · [Instead of Postman](https://enterprisedna.co/omni/instead-of/postman?utm_source=github&utm_medium=readme&utm_campaign=postman)
 
 ## Start with evidence
 
