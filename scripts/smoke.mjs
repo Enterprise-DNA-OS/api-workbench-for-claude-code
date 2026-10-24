@@ -37,6 +37,11 @@ try{
  eq((await run('requests')).length,6);
  const broken=structuredClone(fixture);broken.item[0].item.push({name:'bad',request:{method:'GET',url:'file:///private'}});save(broken);
  await reject(['import','postman',`--file=${file}`,'--actor=Tester'],/Only HTTP/);eq((await run('requests')).length,6);
+ const transactionFailure=structuredClone(fixture);transactionFailure.info.name='Should roll back';transactionFailure.item[0].item[0].request.url.raw='https://service.example.invalid/rollback';transactionFailure.item[0].item[1].name='Force failure';
+ await db.exec("create function test_reject() returns trigger language plpgsql as $$ begin if new.name='Force failure' then raise exception 'injected write failure'; end if; return new; end $$; create trigger test_reject before insert or update on requests for each row execute function test_reject();");
+ save(transactionFailure);await reject(['import','postman',`--file=${file}`,'--actor=Tester'],/injected write failure/);
+ eq((await run('request','Service health'))[0].url,'https://service.example.invalid/health');ok((await run('collections')).some(x=>x.name==='Example service'));
+ await db.exec('drop trigger test_reject on requests; drop function test_reject();');
  const changed=structuredClone(fixture);changed.item[0].item.pop();changed.item[0].item[0].request.url.raw='https://service.example.invalid/new-health';save(changed);
  await run('import','postman',`--file=${file}`,'--actor=Tester');eq((await run('request','Service ready'))[0].lifecycle,'retired');
  eq((await run('request','Service health'))[0].revision,2);
