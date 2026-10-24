@@ -1,0 +1,91 @@
+import assert from 'node:assert/strict';
+import {mkdtempSync,readFileSync,writeFileSync,rmSync,existsSync,readdirSync} from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {spawnSync} from 'node:child_process';
+import http from 'node:http';
+import {getDb,REPO_ROOT} from './lib/db.mjs';
+import {migrate} from './migrate.mjs';
+import {execute,parseCollection,READS} from './api.mjs';
+import {esc} from './lib/render.mjs';
+const tmp=mkdtempSync(path.join(os.tmpdir(),'api-workbench-'));
+process.env.DATA_DIR=path.join(tmp,'db');process.env.OUTPUT_DIR=tmp;
+process.env.DATABASE_URL=process.env.TEST_DATABASE_URL||'';
+const db=await getDb();let assertions=0,server;
+const ok=(v)=>{assert.ok(v);assertions++;};
+const eq=(a,b)=>{assert.deepEqual(a,b);assertions++;};
+const reject=async(args,re)=>{await assert.rejects(()=>execute(db,args),re);assertions++;};
+const run=(...args)=>execute(db,args);
+try{
+ if(process.env.TEST_DATABASE_URL){const existing=await db.query("select tablename from pg_tables where schemaname='public'");assert.equal(existing.length,0,'TEST_DATABASE_URL must be an empty disposable database');}
+ eq((await migrate(db)).ran.length,1);eq((await migrate(db)).ran.length,0);
+ const seed=readFileSync(path.join(REPO_ROOT,'supabase/seed.sql'),'utf8');await db.exec(seed);await db.exec(seed);
+ eq((await run('collections')).length,2);eq((await run('requests')).length,4);
+ for(const command of Object.keys(READS))ok(Array.isArray(await run(command)));
+ eq((await run('coverage'))[0].failing,1);eq((await run('coverage'))[0].stale,1);
+ eq((await run('untested')).length,1);ok((await run('compliance')).some(x=>x.rule==='INV-OWNER'));
+ ok((await run('weekly-review')).attention.length>=4);eq((await run('request','ORDER HEALTH'))[0].name,'Order health');
+ await reject(['request','Order'],/Ambiguous/);await reject(['request','unknown'],/Not found/);
+ ok((await run('help')).help.includes('import postman'));
+ await reject(['nonsense','--actor=Tester'],/Unknown/);
+ const fixture=JSON.parse(readFileSync(path.join(REPO_ROOT,'fixtures/postman-collection.json'),'utf8'));
+ const file=path.join(tmp,'collection.json'),save=x=>writeFileSync(file,JSON.stringify(x));save(fixture);
+ eq((await run('import','postman',`--file=${file}`,'--actor=Tester','--dry-run')).requests,2);
+ eq((await run('collections')).length,2);
+ eq((await run('import','postman',`--file=${file}`,'--actor=Tester')).imported,2);
+ ok((await run('import','postman',`--file=${file}`,'--actor=Tester')).unchanged);
+ eq((await run('requests')).length,6);
+ const broken=structuredClone(fixture);broken.item[0].item.push({name:'bad',request:{method:'GET',url:'file:///private'}});save(broken);
+ await reject(['import','postman',`--file=${file}`,'--actor=Tester'],/Only HTTP/);eq((await run('requests')).length,6);
+ const changed=structuredClone(fixture);changed.item[0].item.pop();changed.item[0].item[0].request.url.raw='https://service.example.invalid/new-health';save(changed);
+ await run('import','postman',`--file=${file}`,'--actor=Tester');eq((await run('request','Service ready'))[0].lifecycle,'retired');
+ eq((await run('request','Service health'))[0].revision,2);
+ save(fixture);await run('import','postman',`--file=${file}`,'--actor=Tester');eq((await run('request','Service ready'))[0].lifecycle,'active');eq((await run('request','Service health'))[0].revision,3);
+ const sensitive=structuredClone(fixture);sensitive.info._postman_id='sanitisation-fixture';sensitive.info.name='Omitted components';sensitive.auth={type:'bearer',bearer:[{key:'token',value:'FIXTURE_ONLY'}]};sensitive.item[0].item[0].request.url.raw='https://service.example.invalid/check?key=FIXTURE_ONLY';
+ const parsed=parseCollection(sensitive);ok(!JSON.stringify(parsed).includes('FIXTURE_ONLY'));ok(parsed.records.every(x=>x.import_notes));
+ save(sensitive);await run('import','postman',`--file=${file}`,'--actor=Tester');
+ await reject(['run','Service health','--actor=Tester','--allow-host=service.example.invalid'],/Ambiguous/);
+ const sanitized=(await run('requests')).find(x=>x.collection==='Omitted components');
+ await reject(['run',sanitized.id,'--actor=Tester','--allow-host=service.example.invalid'],/Import needs review/);
+ await reject(['review','Example service','--owner=T','--due=2026-02-30','--actor=Tester'],/real YYYY/);
+ await reject(['review','Example service','--owner=T','--due=2027-01-01'],/actor/);
+ await run('review','Example service','--owner=Tui','--due=2027-01-01','--actor=Tester');eq((await run('collections')).find(x=>x.name==='Example service').owner,'Tui');
+ const action=await run('log','Example service','--title=Review handover','--owner=Tui','--due=2026-01-01','--actor=Tester');
+ await reject(['close-action',action.id,'--actor=Tester'],/resolution/);
+ await run('close-action',action.id,'--resolution=Reviewed with owner','--actor=Tester');
+ await reject(['close-action',action.id,'--resolution=Duplicate','--actor=Tester'],/already closed/);
+ let requests=0;
+ server=http.createServer((req,res)=>{requests++;if(req.url==='/slow'){setTimeout(()=>{res.writeHead(200);res.end('ok');},150);return;}
+ if(req.url==='/redirect'){res.writeHead(302,{location:'/ok'});res.end();return;}
+ res.writeHead(req.url==='/fail'?503:200,{'Content-Type':'text/plain'});res.end('fixture body must never be stored');});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const host=`127.0.0.1:${server.address().port}`;
+ const added=await run('add','--collection=Example service','--name=Local check','--method=GET',`--url=http://${host}/ok`,'--actor=Tester');
+ await reject(['run',added.id,`--allow-host=${host}`,'--actor=Tester'],/HTTPS/);
+ await reject(['run',added.id,'--allow-host=wrong','--local-test','--actor=Tester'],/exact host/);
+ const args=['run',added.id,`--allow-host=${host}`,'--local-test','--actor=Tester'];
+ const passed=await run(...args);eq(passed.passed,true);eq((await run('request',added.id))[0].health,'passed');
+ await run('configure',added.id,'--status=201','--actor=Tester');eq((await run('request',added.id))[0].health,'untested');eq((await run(...args)).passed,false);
+ await reject(['configure',added.id,'--max-ms=NaN','--actor=Tester'],/Expected integer/);
+ await reject(['configure',added.id,'--lifecycle=bogus','--actor=Tester'],/Invalid/);
+ await run('configure',added.id,'--status=200',`--url=http://${host}/redirect`,'--actor=Tester');const before=requests;eq((await run(...args)).status,302);eq(requests-before,1);
+ await run('configure',added.id,'--max-ms=10',`--url=http://${host}/slow`,'--actor=Tester');eq((await run(...args)).error,'Timeout');
+ await run('configure',added.id,'--lifecycle=deprecated','--actor=Tester');await reject(args,/Only active/);
+ const post=await run('add','--collection=Example service','--name=Write request','--method=POST',`--url=http://${host}/ok`,'--actor=Tester');await reject(['run',post.id,`--allow-host=${host}`,'--actor=Tester'],/Only GET and HEAD/);
+ const draft=await run('draft-handover','Example service','--actor=Tester');ok(existsSync(draft.file));
+ const exported=path.join(tmp,'export.json');await run('export',`--file=${exported}`);const full=readFileSync(exported,'utf8');ok(!full.includes('FIXTURE_ONLY'));ok(!full.includes('fixture body'));
+ eq(JSON.parse(full).requests.length,(await run('requests')).length);await reject(['export',`--file=${exported}`],/EEXIST/);
+ ok((await run('activity')).some(x=>x.event==='configure'));
+ eq(esc('<script>'), '&lt;script&gt;');
+ await db.close();
+ const cli=(script,args=[])=>spawnSync(process.execPath,[path.join(REPO_ROOT,'scripts',script),...args],{env:process.env,encoding:'utf8',cwd:REPO_ROOT});
+ for(const script of ['docs.mjs','view.mjs']){const result=cli(script);eq(result.status,0);}
+ const human=cli('api.mjs',['coverage']);eq(human.status,0);ok(human.stdout.includes('passing'));
+ const machine=cli('api.mjs',['coverage','--json']);eq(machine.status,0);ok(Array.isArray(JSON.parse(machine.stdout)));
+ const bad=cli('api.mjs',['request','ambiguous-missing']);eq(bad.status,1);ok(bad.stderr.includes('Not found'));
+ ok(readdirSync(path.join(tmp,'docs-out/handover')).length>=2);ok(existsSync(path.join(tmp,'views/week.html')));
+ console.log(`PASS: ${assertions} assertions; every CLI command; imports, rollback, revision invalidation, network gates, timeout, documents, dashboards (${process.platform}, ${process.env.TEST_DATABASE_URL?'PostgreSQL':'PGlite'})`);
+}finally{
+ await db.close().catch(()=>{});
+ if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
+ rmSync(tmp,{recursive:true,force:true});
+}

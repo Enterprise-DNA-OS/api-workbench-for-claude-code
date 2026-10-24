@@ -1,13 +1,29 @@
 [
   {
     "name": "week",
-    "title": "This week",
-    "subtitle": "API Workbench for Claude Code: what needs attention, rendered by npm run view",
+    "title": "API operations this week",
     "sections": [
       {
+        "title": "Coverage",
+        "sql": "select name,owner,active,passing,failing,untested,stale from collection_coverage order by name"
+      },
+      {
         "title": "Needs attention",
-        "note": "TODO(author): point this at the industry's attention view (overdue, stuck, quiet).",
-        "sql": "select 'replace me' as item, 'TODO(author)' as why"
+        "sql": "select * from attention_items order by kind,item"
+      }
+    ]
+  },
+  {
+    "name": "inventory",
+    "title": "API inventory review",
+    "sections": [
+      {
+        "title": "Requests",
+        "sql": "select collection,name,method,url,lifecycle,health from request_health order by collection,name"
+      },
+      {
+        "title": "Record controls",
+        "sql": "select * from compliance_findings order by rule,item"
       }
     ]
   }

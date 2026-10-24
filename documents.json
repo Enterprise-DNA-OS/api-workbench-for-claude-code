@@ -1,11 +1,38 @@
 [
   {
-    "name": "example",
-    "title": "TODO(author): the first document this industry must produce",
-    "for_each": "select gen_random_uuid() as id, 'Example' as name",
+    "name": "handover",
+    "title": "Integration handover record",
+    "for_each": "select id,name from collections order by name",
     "file": "name",
     "sections": [
-      { "title": "Details", "sql": "select 'replace me' as item, $1::text as record_id" }
+      {
+        "title": "Accountability",
+        "sql": "select name,owner,review_due from collections where id=$1"
+      },
+      {
+        "title": "Current checks",
+        "sql": "select name,method,url,expected_status,max_ms,lifecycle,health,last_status from request_health where collection_id=$1 order by name"
+      },
+      {
+        "title": "Open actions",
+        "sql": "select title,owner,due from actions where collection_id=$1 and state='open' order by due"
+      }
+    ]
+  },
+  {
+    "name": "review",
+    "title": "Integration review record",
+    "for_each": "select id,name from collections order by name",
+    "file": "name",
+    "sections": [
+      {
+        "title": "Coverage",
+        "sql": "select name,active,passing,failing,untested,stale from collection_coverage where id=$1"
+      },
+      {
+        "title": "Check evidence",
+        "sql": "select q.name,r.revision,r.status,r.elapsed_ms,r.passed,r.actor,r.created_at from runs r join requests q on q.id=r.request_id where q.collection_id=$1 order by r.created_at desc"
+      }
     ]
   }
 ]

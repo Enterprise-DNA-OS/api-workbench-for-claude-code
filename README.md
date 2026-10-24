@@ -1,115 +1,101 @@
-<h1 align="center">API Workbench for Claude Code</h1>
+# API Workbench for Claude Code
 
-<p align="center">
-  <strong>The open-source API workbench that is just a database and Claude Code.</strong>
-</p>
+Own your request inventory, weekly service checks and integration handovers in one database. Bring a sanitised Postman collection, name its owner and see which checks need attention.
 
-<p align="center">
-  Created by <a href="https://www.enterprisedna.co"><strong>Enterprise DNA</strong></a>. Free and open source. Works with Claude Code, Codex, OpenCode or Cursor.
-</p>
+| Do it yourself | We customise it | We run it for you |
+|---|---|---|
+| Free under MIT. Install the demo below. | Your exports, review rules, approved authentication design and reporting. | Installed and operated through Omni by Enterprise DNA. One setup fee, then a retainer. |
 
-<!-- three-doors -->
-<table align="center">
-  <tr>
-    <td align="center"><strong>Do it yourself</strong><br/>Clone it, run it, own it. Free, MIT.<br/><a href="#quick-start">Quick start</a></td>
-    <td align="center"><strong>We customise it</strong><br/>Your fields, your rules, your Postman data brought across.<br/><a href="https://enterprisedna.co/omni/book/?utm_source=github&utm_medium=readme&utm_campaign=postman">Book a call</a></td>
-    <td align="center"><strong>We run it for you</strong><br/>Installed, connected and operated inside Omni. Setup fee, then a retainer.<br/><a href="https://enterprisedna.co/omni/instead-of/postman?utm_source=github&utm_medium=readme&utm_campaign=postman">How it works</a></td>
-  </tr>
-</table>
+[Get your version built](https://enterprisedna.co/omni/book/?offer=replace-software&utm_source=github&utm_medium=readme&utm_campaign=postman) · [Instead of Postman](https://enterprisedna.co/omni/instead-of/postman)
 
-<p align="center">
-  <a href="#what-is-this">What is this</a> &bull;
-  <a href="#why-no-front-end">Why no front end</a> &bull;
-  <a href="#quick-start">Quick start</a> &bull;
-  <a href="#the-commands">Commands</a> &bull;
-  <a href="#instead-of-postman">Instead of Postman</a> &bull;
-  <a href="#want-it-installed-and-run-for-you">Installed for you</a> &bull;
-  <a href="#license">License</a>
-</p>
+## Start with evidence
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Node-20+-339933?style=flat-square" alt="Node 20+" />
-  <img src="https://img.shields.io/badge/PostgreSQL-any-336791?style=flat-square" alt="PostgreSQL" />
-  <img src="https://img.shields.io/badge/PGlite-embedded-3ecf8e?style=flat-square" alt="PGlite" />
-  <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="MIT License" />
-</p>
-
----
-
-## What is this
-
-API Workbench for Claude Code does the job you pay Postman for, as a Postgres database and a set of agent commands. There is no web front end. You open the folder in [Claude Code](https://claude.com/claude-code) (or Codex, OpenCode, Cursor: see `AGENTS.md`) and ask for what you want in plain language. It runs the right query, and it can answer questions the Postman dashboard cannot.
-
-<!-- TODO(author): the annual bill. One sentence: what a 10 to 50 person business typically pays Postman per year, all in, with a source. -->
-
-Want the same thing with a web front end, or built on a different stack? That is a customisation, and it is exactly what Enterprise DNA does: [book a call](https://enterprisedna.co/omni/book/?utm_source=github&utm_medium=readme&utm_campaign=postman).
-
-<!-- TODO(author): two or three sentences on what this specific product covers and who it is for. -->
-
-## Why no front end
-
-- The front end was only ever there because the database was hard to talk to. That is no longer true.
-- Your data sits in plain Postgres tables you own. Any tool can read them. No export, no lock-in.
-- No seats, no tiers, no add-ons. Read [docs/why-no-front-end.md](docs/why-no-front-end.md) for the honest trade-offs too.
-
-## Quick start
-
-Sixty seconds, no database install (an embedded Postgres runs inside Node):
+Node 20 or later:
 
 ```bash
 git clone https://github.com/Enterprise-DNA-OS/api-workbench-for-claude-code.git
 cd api-workbench-for-claude-code
 npm install
 npm run demo
+npm run api -- attention
+npm run docs
+npm run view
 ```
 
-Then open the folder in Claude Code and type a slash command. <!-- TODO(author): name the first command to try. -->
+Open the folder with Claude Code, Codex, OpenCode or Cursor. AGENTS.md routes to the same instructions as CLAUDE.md. PGlite runs locally. DATABASE_URL selects your PostgreSQL database; DATA_DIR selects a different local directory. Use a trusted operator and dedicated database. The demo has fictional results, a stale passing check, a failure, an untested request and an overdue action. Demo addresses never resolve to a real service.
 
-### Use it with your own Postgres or Supabase
+## The weekly rituals
 
-Copy `.env.example` to `.env`, set `DATABASE_URL`, then `npm run migrate`. Same commands, shared data, no per-seat fee.
+Review collection ownership, inspect failing requests, check stale evidence, assign follow-ups and prepare the handover. The CLI provides human output and --json. Exact names are case-insensitive. Partial names and ids work only when unique; ambiguous matches list candidates and exit 1.
 
-## The commands
-
-<!-- TODO(author): a table of the slash commands in .claude/commands and what each one does. -->
-
-| Command | What it does |
+| Job | Example |
 |---|---|
-| `/...` | ... |
+| Monday review | npm run api -- weekly-review |
+| Ownership and coverage | npm run api -- collections |
+| Failed checks | npm run api -- failures |
+| Record controls | npm run api -- compliance |
+| Assign next review | npm run api -- review "Order integrations" --owner=Mere --due=2026-11-30 --actor=Mere |
+| Record a follow-up | npm run api -- log "Order integrations" --title="Confirm recovery" --owner=Mere --due=2026-11-01 --actor=Mere |
+| Full command list | npm run api -- help |
 
-## Instead of postman
+A request change creates a new revision. Old passing results remain evidence of the old definition and never count as a current pass. The seven-day freshness window is an internal default, not an industry mandate. Each write records an actor label; those labels are not signatures or sign-in controls.
 
-<!-- TODO(author): how to bring data across from Postman; link docs/replace-postman.md -->
+## Bring your collection
 
-## Architecture
-
-```
-api-workbench-for-claude-code/
-  CLAUDE.md                 how the operator wants this run (routing table + house rules)
-  AGENTS.md                 the same, for Codex / OpenCode / Cursor / Gemini CLI
-  .claude/commands/         the slash commands
-  scripts/                  the CLI the commands drive
-  scripts/lib/db.mjs        one adapter: DATABASE_URL (pg) or embedded PGlite
-  supabase/migrations/      plain SQL schema
-  supabase/seed.sql         demo data
-  docs/                     the thesis and the migration guide
+```bash
+npm run api -- import postman --file=fixtures/postman-collection.json --actor=Mere --dry-run
+npm run api -- import postman --file=fixtures/postman-collection.json --actor=Mere
+npm run api -- export --file=exports/workbench-2026-10-24.json
 ```
 
-## Built for coding agents
+The importer supports Postman Collection v2.1 JSON. Names, nested folders, methods and addresses become reviewable records. Authentication, headers, bodies, variables, saved responses and scripts do not run or migrate as working behaviour. Query values become unresolved placeholders. Warnings block execution until a separately reviewed request is added. Export writes all six record groups to a new private file and refuses to overwrite it. It is an owned snapshot, not a Postman collection or an automatic restore tool.
 
-The database, CLI and command recipes work with Claude Code, Codex, OpenCode or Cursor. Ask your coding agent for a new command and have it implement and test the change against the same records.
+[One-command import, field mapping and cutover checks](docs/replace-postman.md).
 
-## Contributing
+## Check an approved service
 
-Issues and pull requests are welcome. Keep the shape: plain SQL, a small CLI, a slash command per recurring job, no front end.
+```bash
+npm run api -- run "<reviewed request>" --allow-host="<exact host and port>" --actor=Mere
+```
 
-## Want it installed and run for you?
+Only active GET and HEAD requests run. The exact host must be authorised by the operator. HTTPS is required except for explicit loopback test fixtures. No redirects, authentication, cookies, request bodies or imported code execute. A status mismatch or exceeded time budget records a failure and exits 1. Response content is discarded. Requests with import omissions are blocked. This is a bounded service-check workbench, not a complete replacement for Postman's protocol clients, mocks, load tests or scripting runtime. Enterprise DNA scopes those needs before migration.
 
-Enterprise DNA installs API Workbench for Claude Code for your business, migrates your Postman data, connects it to the rest of your tools, and runs it for you as part of **Omni**, our managed Command Center. One setup fee, then a monthly retainer.
+## Ten questions this build answers
 
-- Book a call: [enterprisedna.co/omni/book](https://enterprisedna.co/omni/book/?offer=replace-software&utm_source=github&utm_medium=readme&utm_campaign=postman)
-- Read more: [enterprisedna.co/omni/instead-of/postman](https://enterprisedna.co/omni/instead-of/postman?utm_source=github&utm_medium=readme&utm_campaign=postman)
+These are working questions, not unsupported claims that Postman cannot answer them.
 
-## License
+1. Which collections have failed checks and no accountable owner? Use owners and coverage.
+2. Which current request definitions have never been checked? Use untested.
+3. Which passing results are too old for our weekly review? Use coverage and attention.
+4. Which requests changed after their last check? Use request and runs.
+5. Which hosts still have deprecated requests recorded? Use hosts and requests.
+6. What follow-ups are overdue and who owns each one? Use actions and attention.
+7. Which collection reviews have missed their due date? Use compliance.
+8. What settings changed and which operator recorded them? Use activity.
+9. What failed most recently for each active request? Use failures.
+10. What check evidence and unresolved actions belong in this handover? Use draft-handover and documents.
 
-MIT. Copyright (c) 2026 Enterprise DNA.
+## Documents and read-only views
+
+npm run docs creates integration handover and review records for each collection. npm run view creates the week and inventory dashboards. Set business name, logo and colours in brand.json. Reports are local HTML for inspection and printing. /new-view adds a report through the shared renderer. /customise writes a forward migration and updates the affected recipes and tests. No interactive front end is included.
+
+## Your first hour: ten things to ask for
+
+1. Put our business name on the handover.
+2. Inspect the headings and methods in our sanitised export.
+3. Import a collection after its dry run matches.
+4. Assign each collection an accountable owner.
+5. Set our next review dates.
+6. List requests without current check evidence.
+7. Set the expected response and time limit on a reviewed request.
+8. Log an action for a failed service check.
+9. Draft the handover with unresolved actions included.
+10. Add our service criticality field and include it in the weekly view.
+
+## Record controls and verification
+
+[Compliance controls and sources](docs/compliance.md) checks ownership, review dates, transport addresses and deprecated endpoints. It does not certify a service or inspect its security. [What a screen provides](docs/why-no-front-end.md) covers interactive request editing, mobile work and collaboration.
+
+npm test exercises every CLI command against a disposable database, including bad imports, replay, revision changes, ambiguous matches, network gates, timeout, drafts, exports and HTML output. The manual workflow tests Windows and Linux on Node 20 and 22 plus PostgreSQL 17. A workflow definition alone is not proof it ran. [Verification evidence](docs/verification.md).
+
+[Selection evidence, six scores and pricing sources](docs/research.md). Hosting and coding-agent usage have their own costs. MIT. Not affiliated with Postman or Anthropic.

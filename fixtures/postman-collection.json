@@ -1,0 +1,32 @@
+{
+  "info": {
+    "_postman_id": "fixture-service",
+    "name": "Example service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Service checks",
+      "item": [
+        {
+          "id": "health",
+          "name": "Service health",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "https://service.example.invalid/health"
+            }
+          }
+        },
+        {
+          "id": "ready",
+          "name": "Service ready",
+          "request": {
+            "method": "HEAD",
+            "url": "https://service.example.invalid/ready"
+          }
+        }
+      ]
+    }
+  ]
+}
